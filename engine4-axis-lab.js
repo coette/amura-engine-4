@@ -7,7 +7,7 @@ import {
   WebGLRenderer
 } from "./vendor/three/three.module.js";
 
-const REVISION = "R1.7";
+const REVISION = "R1.8";
 const DEFAULT_LENGTH_MM = 180;
 const WATCH_SHIFT_MM = -24;
 
@@ -18,6 +18,7 @@ let offsetZmm = 0;
 let watchState = 0;
 let paused = false;
 let pauseRaf = 0;
+let diagRaf = 0;
 
 let trackingRig = null;
 let assembly = null;
@@ -29,6 +30,88 @@ let lastScene = null;
 let lastCamera = null;
 const watchBasePosition = new Vector3();
 const video = document.getElementById("cameraVideo");
+
+const diag = {
+  bindReached: false,
+  bindCallsTotal: 0,
+  bindCallsWindow: 0,
+  bindCallsPerSecond: 0,
+  rateWindowStartedAt: performance.now(),
+  rigFound: false,
+  anchorFound: false,
+  wristFound: false,
+  reparentStatus: "NO INTENTADO",
+  reparentError: "",
+  lastSlider: "—",
+  lastSliderPosition: "—"
+};
+
+function ensureDiagHud() {
+  let hud = document.getElementById("engine4AxisDiagHud");
+  if (hud) return hud;
+  hud = document.createElement("div");
+  hud.id = "engine4AxisDiagHud";
+  hud.setAttribute("aria-live", "polite");
+  hud.style.cssText = [
+    "position:fixed",
+    "top:calc(env(safe-area-inset-top,0px) + 8px)",
+    "left:8px",
+    "z-index:100120",
+    "width:min(244px,58vw)",
+    "padding:6px 7px",
+    "border:1px solid rgba(255,255,255,.28)",
+    "background:rgba(0,0,0,.58)",
+    "color:#fff",
+    "font:700 9px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace",
+    "white-space:pre-wrap",
+    "pointer-events:none",
+    "border-radius:5px",
+    "text-shadow:0 1px 2px #000"
+  ].join(";");
+  (document.querySelector(".camera-lab") || document.body).appendChild(hud);
+  return hud;
+}
+
+function yesNo(value) {
+  return value ? "SÍ" : "NO";
+}
+
+function actualAssemblyPosition() {
+  if (!assembly) return "—";
+  return `(${assembly.position.x.toFixed(1)}, ${assembly.position.y.toFixed(1)}, ${assembly.position.z.toFixed(1)})`;
+}
+
+function updateDiagHud() {
+  const hud = ensureDiagHud();
+  const error = diag.reparentError ? ` · ${diag.reparentError}` : "";
+  hud.textContent = [
+    `R1.8 DIAG AXIS-LAB`,
+    `bindRig: ${yesNo(diag.bindReached)} · ${diag.bindCallsPerSecond}/s`,
+    `RIG: ${yesNo(diag.rigFound)}`,
+    `ANCHOR: ${yesNo(diag.anchorFound)}`,
+    `WRIST: ${yesNo(diag.wristFound)}`,
+    `REPARENT: ${diag.reparentStatus}${error}`,
+    `assembly.pos: ${actualAssemblyPosition()}`,
+    `slider ${diag.lastSlider}: ${diag.lastSliderPosition}`
+  ].join("\n");
+}
+
+function recordSliderPosition(axisName) {
+  diag.lastSlider = axisName;
+  diag.lastSliderPosition = actualAssemblyPosition();
+  updateDiagHud();
+}
+
+function diagnosticFrame(now) {
+  if (now - diag.rateWindowStartedAt >= 1000) {
+    const elapsed = Math.max(1, now - diag.rateWindowStartedAt);
+    diag.bindCallsPerSecond = Math.round(diag.bindCallsWindow * 1000 / elapsed);
+    diag.bindCallsWindow = 0;
+    diag.rateWindowStartedAt = now;
+  }
+  updateDiagHud();
+  diagRaf = requestAnimationFrame(diagnosticFrame);
+}
 
 function readDimensions(showError = false) {
   const yInput = document.getElementById("wristDimY");
@@ -96,29 +179,50 @@ function ensureVirtualAxis() {
 }
 
 function bindRig(scene) {
+  diag.bindReached = true;
+  diag.bindCallsTotal += 1;
+  diag.bindCallsWindow += 1;
+
+  const rigProbe = scene?.getObjectByName?.("AMURA_R18_WRIST_WATCH_RIG") || null;
+  const anchorProbe = rigProbe?.getObjectByName?.("AMURA_R18_WATCH_ANCHOR") || null;
+  const wristProbe = rigProbe?.getObjectByName?.("AMURA_R18_WRIST_OCCLUDER") || null;
+  diag.rigFound = Boolean(rigProbe);
+  diag.anchorFound = Boolean(anchorProbe);
+  diag.wristFound = Boolean(wristProbe);
+
   if (trackingRig?.parent) return true;
-  const rig = scene?.getObjectByName?.("AMURA_R18_WRIST_WATCH_RIG");
+  const rig = rigProbe;
   if (!rig) return false;
-  const anchor = rig.getObjectByName?.("AMURA_R18_WATCH_ANCHOR");
-  const wrist = rig.getObjectByName?.("AMURA_R18_WRIST_OCCLUDER");
+  const anchor = anchorProbe;
+  const wrist = wristProbe;
   if (!anchor || !wrist) return false;
 
-  trackingRig = rig;
-  watchAnchor = anchor;
-  wristMesh = wrist;
-  watchBasePosition.copy(anchor.position);
+  try {
+    trackingRig = rig;
+    watchAnchor = anchor;
+    wristMesh = wrist;
+    watchBasePosition.copy(anchor.position);
 
-  assembly = new Group();
-  assembly.name = "AMURA_ENGINE4_VIRTUAL_WRIST_ASSEMBLY";
-  rig.add(assembly);
-  rig.remove(anchor); assembly.add(anchor);
-  rig.remove(wrist); assembly.add(wrist);
+    assembly = new Group();
+    assembly.name = "AMURA_ENGINE4_VIRTUAL_WRIST_ASSEMBLY";
+    rig.add(assembly);
+    rig.remove(anchor); assembly.add(anchor);
+    rig.remove(wrist); assembly.add(wrist);
 
-  ensureVirtualAxis();
-  applyAssemblyGeometry();
-  applyWatchState();
-  updateLabValues();
-  return true;
+    ensureVirtualAxis();
+    applyAssemblyGeometry();
+    applyWatchState();
+    updateLabValues();
+    diag.reparentStatus = "OK";
+    diag.reparentError = "";
+    updateDiagHud();
+    return true;
+  } catch (error) {
+    diag.reparentStatus = "ERROR";
+    diag.reparentError = error && error.message ? error.message : String(error);
+    updateDiagHud();
+    return false;
+  }
 }
 
 const originalRender = WebGLRenderer.prototype.render;
@@ -234,6 +338,7 @@ function installUi() {
   ySlider?.addEventListener("input", () => {
     offsetYmm = Number(ySlider.value) || 0;
     applyAssemblyGeometry();
+    recordSliderPosition("Y");
     updateLabValues();
     forceRender();
   });
@@ -241,6 +346,7 @@ function installUi() {
   zSlider?.addEventListener("input", () => {
     offsetZmm = Number(zSlider.value) || 0;
     applyAssemblyGeometry();
+    recordSliderPosition("Z");
     updateLabValues();
     forceRender();
   });
@@ -289,11 +395,16 @@ window.addEventListener("amura-camera-state", (event) => {
   }
 });
 
-window.addEventListener("pagehide", stopPauseRenderLoop);
+window.addEventListener("pagehide", () => {
+  stopPauseRenderLoop();
+  if (diagRaf) cancelAnimationFrame(diagRaf);
+});
 
 installUi();
 setInterval(updateRescueBadge, 200);
 window.AmuraEngine4Paused = false;
+ensureDiagHud();
+diagRaf = requestAnimationFrame(diagnosticFrame);
 
 window.AmuraEngine4AxisLab = {
   revision: REVISION,
