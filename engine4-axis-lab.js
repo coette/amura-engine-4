@@ -1,0 +1,232 @@
+import {
+  CylinderGeometry,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  Vector3,
+  WebGLRenderer
+} from "./vendor/three/three.module.js";
+
+const REVISION = "R1.3";
+const DEFAULT_LENGTH_MM = 180;
+const WATCH_SHIFT_MM = -24;
+
+let wristYmm = 0;
+let wristZmm = 0;
+let offsetYmm = 0;
+let offsetZmm = 0;
+let watchState = 0;
+
+let trackingRig = null;
+let assembly = null;
+let wristMesh = null;
+let watchAnchor = null;
+let virtualAxis = null;
+const watchBasePosition = new Vector3();
+
+function bySuffix(root, suffix) {
+  let found = null;
+  root?.traverse?.((node) => {
+    if (!found && typeof node.name === "string" && node.name.endsWith(suffix)) found = node;
+  });
+  return found;
+}
+
+function readDimensions(showError = false) {
+  const yInput = document.getElementById("wristDimY");
+  const zInput = document.getElementById("wristDimZ");
+  const error = document.getElementById("wristDimError");
+  const y = Number(String(yInput?.value || "").replace(",", "."));
+  const z = Number(String(zInput?.value || "").replace(",", "."));
+  const valid = Number.isFinite(y) && Number.isFinite(z) && y >= 20 && y <= 120 && z >= 20 && z <= 120;
+
+  if (!valid) {
+    if (showError && error) error.textContent = "INTRODUCE Y Y Z EN MILÍMETROS ANTES DE ABRIR LA CÁMARA";
+    return false;
+  }
+
+  wristYmm = y;
+  wristZmm = z;
+  if (error) error.textContent = `MUÑECA VIRTUAL · Y ${y.toFixed(1)} mm · Z ${z.toFixed(1)} mm`;
+  applyAssemblyGeometry();
+  updateLabValues();
+  return true;
+}
+
+function applyAssemblyGeometry() {
+  if (!wristMesh || !assembly || !wristYmm || !wristZmm) return;
+
+  wristMesh.scale.x = wristYmm / 2;
+  wristMesh.scale.z = wristZmm / 2;
+  wristMesh.position.z = wristZmm / 2;
+
+  if (virtualAxis) {
+    virtualAxis.position.set(0, 0, wristZmm / 2);
+  }
+
+  assembly.position.set(0, offsetYmm, offsetZmm);
+}
+
+function applyWatchState() {
+  if (!watchAnchor) return;
+  watchAnchor.position.copy(watchBasePosition);
+  if (watchState === 1) watchAnchor.position.x += WATCH_SHIFT_MM;
+  watchAnchor.visible = watchState !== 2;
+}
+
+function ensureVirtualAxis() {
+  if (!assembly || virtualAxis) return;
+  const geometry = new CylinderGeometry(1.15, 1.15, DEFAULT_LENGTH_MM, 12);
+  const material = new MeshBasicMaterial({
+    color: 0xc03cff,
+    depthTest: false,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.95
+  });
+  virtualAxis = new Mesh(geometry, material);
+  virtualAxis.name = "AMURA_ENGINE4_VIRTUAL_WRIST_AXIS";
+  virtualAxis.rotation.z = Math.PI / 2;
+  virtualAxis.renderOrder = 100000;
+  assembly.add(virtualAxis);
+}
+
+function bindRig(scene) {
+  if (trackingRig?.parent) return true;
+
+  const rig = scene?.getObjectByName?.("AMURA_R18_WRIST_WATCH_RIG") || bySuffix(scene, "_WRIST_WATCH_RIG");
+  if (!rig) return false;
+
+  const anchor = rig.getObjectByName?.("AMURA_R18_WATCH_ANCHOR") || bySuffix(rig, "_WATCH_ANCHOR");
+  const wrist = rig.getObjectByName?.("AMURA_R18_WRIST_OCCLUDER") || bySuffix(rig, "_WRIST_OCCLUDER");
+  if (!anchor || !wrist) return false;
+
+  trackingRig = rig;
+  watchAnchor = anchor;
+  wristMesh = wrist;
+  watchBasePosition.copy(anchor.position);
+
+  assembly = new Group();
+  assembly.name = "AMURA_ENGINE4_VIRTUAL_WRIST_ASSEMBLY";
+  rig.add(assembly);
+
+  rig.remove(anchor);
+  assembly.add(anchor);
+  rig.remove(wrist);
+  assembly.add(wrist);
+
+  ensureVirtualAxis();
+  applyAssemblyGeometry();
+  applyWatchState();
+  updateLabValues();
+  return true;
+}
+
+const originalRender = WebGLRenderer.prototype.render;
+if (!WebGLRenderer.prototype.__amuraEngine4LabR13) {
+  WebGLRenderer.prototype.__amuraEngine4LabR13 = true;
+  WebGLRenderer.prototype.render = function patchedEngine4Render(scene, camera) {
+    if (bindRig(scene)) {
+      applyAssemblyGeometry();
+      applyWatchState();
+    }
+    return originalRender.call(this, scene, camera);
+  };
+}
+
+function watchLabel() {
+  if (watchState === 0) return "RELOJ X = 0";
+  if (watchState === 1) return "RELOJ X = -24 mm";
+  return "RELOJ OCULTO";
+}
+
+function updateLabValues() {
+  const yValue = document.getElementById("axisOffsetYValue");
+  const zValue = document.getElementById("axisOffsetZValue");
+  const watchButton = document.getElementById("watchCycleButton");
+  const dims = document.getElementById("labDimensions");
+  if (yValue) yValue.textContent = `${offsetYmm >= 0 ? "+" : ""}${offsetYmm.toFixed(1)} mm`;
+  if (zValue) zValue.textContent = `${offsetZmm >= 0 ? "+" : ""}${offsetZmm.toFixed(1)} mm`;
+  if (watchButton) watchButton.textContent = watchLabel();
+  if (dims && wristYmm && wristZmm) dims.textContent = `MUÑECA · Y ${wristYmm.toFixed(1)} · Z ${wristZmm.toFixed(1)} mm`;
+}
+
+function installUi() {
+  const startButton = document.getElementById("startButton");
+  const yInput = document.getElementById("wristDimY");
+  const zInput = document.getElementById("wristDimZ");
+  const ySlider = document.getElementById("axisOffsetY");
+  const zSlider = document.getElementById("axisOffsetZ");
+  const watchButton = document.getElementById("watchCycleButton");
+
+  yInput?.addEventListener("input", () => readDimensions(false));
+  zInput?.addEventListener("input", () => readDimensions(false));
+
+  startButton?.addEventListener("click", (event) => {
+    if (readDimensions(true)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    yInput?.focus();
+  }, true);
+
+  ySlider?.addEventListener("input", () => {
+    offsetYmm = Number(ySlider.value) || 0;
+    applyAssemblyGeometry();
+    updateLabValues();
+  });
+
+  zSlider?.addEventListener("input", () => {
+    offsetZmm = Number(zSlider.value) || 0;
+    applyAssemblyGeometry();
+    updateLabValues();
+  });
+
+  watchButton?.addEventListener("click", () => {
+    watchState = (watchState + 1) % 3;
+    applyWatchState();
+    updateLabValues();
+  });
+
+  const resetLabButton = document.getElementById("axisResetButton");
+  resetLabButton?.addEventListener("click", () => {
+    offsetYmm = 0;
+    offsetZmm = 0;
+    watchState = 0;
+    if (ySlider) ySlider.value = "0";
+    if (zSlider) zSlider.value = "0";
+    applyAssemblyGeometry();
+    applyWatchState();
+    updateLabValues();
+  });
+
+  updateLabValues();
+}
+
+function rescueBadgeActive(text) {
+  return /CONGELADO|RELOCALIZANDO|ESPERANDO P0|PERDIDO/i.test(text || "");
+}
+
+function updateRescueBadge() {
+  const badge = document.getElementById("r17RescueBadge");
+  if (!badge) return;
+  badge.classList.toggle("engine4-rescue-active", rescueBadgeActive(badge.textContent));
+}
+
+installUi();
+setInterval(updateRescueBadge, 200);
+
+window.AmuraEngine4AxisLab = {
+  revision: REVISION,
+  get state() {
+    return {
+      wristYmm,
+      wristZmm,
+      offsetYmm,
+      offsetZmm,
+      watchState,
+      watchShiftMm: watchState === 1 ? WATCH_SHIFT_MM : 0,
+      rigBound: Boolean(trackingRig),
+      axisBound: Boolean(virtualAxis)
+    };
+  }
+};
