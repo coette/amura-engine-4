@@ -7,7 +7,7 @@ import {
   WebGLRenderer
 } from "./vendor/three/three.module.js";
 
-const REVISION = "R1.6";
+const REVISION = "R1.7";
 const DEFAULT_LENGTH_MM = 180;
 const WATCH_SHIFT_MM = -24;
 
@@ -17,6 +17,7 @@ let offsetYmm = 0;
 let offsetZmm = 0;
 let watchState = 0;
 let paused = false;
+let pauseRaf = 0;
 
 let trackingRig = null;
 let assembly = null;
@@ -52,11 +53,22 @@ function readDimensions(showError = false) {
 
 function applyAssemblyGeometry() {
   if (!wristMesh || !assembly || !wristYmm || !wristZmm) return;
+
+  // La muñeca conserva el contacto del reloj en su superficie local z=0.
+  // El ensamblaje completo se desplaza -Z/2 para que su eje geométrico
+  // (violeta) quede exactamente en el origen del rig, es decir, sobre
+  // el eje naranja cuando los sliders Y/Z están a cero.
   wristMesh.scale.x = wristYmm / 2;
   wristMesh.scale.z = wristZmm / 2;
   wristMesh.position.z = wristZmm / 2;
+
   if (virtualAxis) virtualAxis.position.set(0, 0, wristZmm / 2);
-  assembly.position.set(0, offsetYmm, offsetZmm);
+
+  assembly.position.set(
+    0,
+    offsetYmm,
+    offsetZmm - wristZmm / 2
+  );
 }
 
 function applyWatchState() {
@@ -110,8 +122,8 @@ function bindRig(scene) {
 }
 
 const originalRender = WebGLRenderer.prototype.render;
-if (!WebGLRenderer.prototype.__amuraEngine4LabR16) {
-  WebGLRenderer.prototype.__amuraEngine4LabR16 = true;
+if (!WebGLRenderer.prototype.__amuraEngine4LabR17) {
+  WebGLRenderer.prototype.__amuraEngine4LabR17 = true;
   WebGLRenderer.prototype.render = function patchedEngine4Render(scene, camera) {
     if (bindRig(scene)) {
       lastRenderer = this;
@@ -128,7 +140,26 @@ function forceRender() {
   if (!lastRenderer || !lastScene || !lastCamera) return;
   applyAssemblyGeometry();
   applyWatchState();
+  lastScene.updateMatrixWorld?.(true);
   originalRender.call(lastRenderer, lastScene, lastCamera);
+}
+
+function stopPauseRenderLoop() {
+  if (pauseRaf) cancelAnimationFrame(pauseRaf);
+  pauseRaf = 0;
+}
+
+function startPauseRenderLoop() {
+  stopPauseRenderLoop();
+  const tick = () => {
+    if (!paused) {
+      pauseRaf = 0;
+      return;
+    }
+    forceRender();
+    pauseRaf = requestAnimationFrame(tick);
+  };
+  pauseRaf = requestAnimationFrame(tick);
 }
 
 function watchLabel() {
@@ -160,6 +191,7 @@ function updateLabValues() {
 async function setPaused(value) {
   const next = Boolean(value);
   if (next === paused) return;
+
   if (next) {
     if (document.body.dataset.status !== "live" || !video) return;
     paused = true;
@@ -167,12 +199,14 @@ async function setPaused(value) {
     document.body.dataset.labPaused = "true";
     try { video.pause(); } catch (_) {}
     forceRender();
+    startPauseRenderLoop();
   } else {
     paused = false;
+    stopPauseRenderLoop();
     window.AmuraEngine4Paused = false;
     delete document.body.dataset.labPaused;
     if (video) {
-      try { await video.play(); } catch (error) { console.warn("R1.6: no se pudo reanudar vídeo", error); }
+      try { await video.play(); } catch (error) { console.warn("R1.7: no se pudo reanudar vídeo", error); }
     }
   }
   updateLabValues();
@@ -203,18 +237,21 @@ function installUi() {
     updateLabValues();
     forceRender();
   });
+
   zSlider?.addEventListener("input", () => {
     offsetZmm = Number(zSlider.value) || 0;
     applyAssemblyGeometry();
     updateLabValues();
     forceRender();
   });
+
   watchButton?.addEventListener("click", () => {
     watchState = (watchState + 1) % 3;
     applyWatchState();
     updateLabValues();
     forceRender();
   });
+
   pauseButton?.addEventListener("click", () => setPaused(!paused));
 
   document.getElementById("axisResetButton")?.addEventListener("click", () => {
@@ -228,12 +265,14 @@ function installUi() {
     updateLabValues();
     forceRender();
   });
+
   updateLabValues();
 }
 
 function rescueBadgeActive(text) {
   return /CONGELADO|RELOCALIZANDO|ESPERANDO P0|PERDIDO/i.test(text || "");
 }
+
 function updateRescueBadge() {
   const badge = document.getElementById("r17RescueBadge");
   if (!badge) return;
@@ -243,11 +282,14 @@ function updateRescueBadge() {
 window.addEventListener("amura-camera-state", (event) => {
   if (!event.detail || event.detail.status !== "live") {
     paused = false;
+    stopPauseRenderLoop();
     window.AmuraEngine4Paused = false;
     delete document.body.dataset.labPaused;
     updateLabValues();
   }
 });
+
+window.addEventListener("pagehide", stopPauseRenderLoop);
 
 installUi();
 setInterval(updateRescueBadge, 200);
@@ -268,7 +310,9 @@ window.AmuraEngine4AxisLab = {
       paused,
       watchShiftMm: watchState === 1 ? WATCH_SHIFT_MM : 0,
       rigBound: Boolean(trackingRig),
-      axisBound: Boolean(virtualAxis)
+      axisBound: Boolean(virtualAxis),
+      centerAxisOffsetYmm: offsetYmm,
+      centerAxisOffsetZmm: offsetZmm
     };
   }
 };
