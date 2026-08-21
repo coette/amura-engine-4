@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#000000"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="AMURA E4"><meta name="mobile-web-app-capable" content="yes">
+<title>AMURA · ENGINE 4 · R1.1</title>
+<link rel="manifest" href="manifest.webmanifest?v=e4r1.1"><link rel="icon" href="icon.svg?v=e4r1.1" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=e4r1.1"><link rel="stylesheet" href="styles.css?v=e4r1.1">
+<style>
+#tunerRoot,#metricDepthHud,#diagnosticsPanel,.controls{display:none!important}
+#threeCanvas{display:block!important;position:absolute;inset:0;width:100%;height:100%;z-index:20!important;pointer-events:none}
+#trackingCanvas{display:block!important;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:40!important;pointer-events:none}
+#maskCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:30;pointer-events:none}
+#maskLabHud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;z-index:100020;width:min(318px,calc(100vw - 20px));padding:10px 12px;border-radius:10px;background:rgba(4,8,14,.78);color:#fff;font:700 12px/1.4 Arial,sans-serif;pointer-events:none;backdrop-filter:blur(8px)}
+#maskLabHud .lab-title{margin:0 0 6px;font-size:12px;letter-spacing:.06em}
+#maskLabHud dl{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin:0}
+#maskLabHud dt{opacity:.62}#maskLabHud dd{margin:0;text-align:right}
+#maskHint{margin:8px 0 0;padding-top:7px;border-top:1px solid rgba(255,255,255,.18);font-weight:600;opacity:.92}
+.mask-action{position:absolute;z-index:100030;min-height:48px;border:1px solid rgba(255,255,255,.42);border-radius:999px;padding:0 18px;background:rgba(5,10,17,.82);color:#fff;font:800 12px/1 Arial,sans-serif;letter-spacing:.04em;backdrop-filter:blur(8px)}
+#maskReadyButton{left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:rgba(0,133,164,.90);min-width:190px}
+#maskPhotoButton{left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px)}
+#maskResetButton{right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px)}
+#trackingHud{display:none!important}
+body[data-status="idle"] #maskLabHud,body[data-status="requesting"] #maskLabHud,body[data-status="idle"] .mask-action,body[data-status="requesting"] .mask-action{display:none!important}
+</style>
+<script src="engine4-camera.js?v=e4r1.1" defer></script><script src="engine4-camera-lens.js?v=e4r1.1" type="module"></script>
+<script src="engine4-hand-tracking.js?v=e4r1.1" type="module"></script><script src="engine4-forearm-mask.js?v=e4r1.1" type="module"></script>
+</head>
+<body data-status="idle" data-facing="environment" data-tracking="idle"><main class="camera-lab">
+<video id="cameraVideo" class="camera-video" autoplay muted playsinline aria-label="Vista en directo de la cámara"></video><div class="camera-shade" aria-hidden="true"></div><canvas id="threeCanvas" class="three-canvas" aria-hidden="true"></canvas><canvas id="maskCanvas" aria-hidden="true"></canvas><canvas id="trackingCanvas" class="tracking-canvas" aria-hidden="true"></canvas>
+<header class="topbar" style="display:none!important"><div><p class="brand">AMURA</p><p class="phase">ENGINE 4 · R1.1 · WRIST RIG</p></div><div class="status-pill" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="statusLabel">EN ESPERA</span></div></header>
+<div id="trackingHud" class="tracking-hud" role="status" aria-live="polite" hidden><span class="tracking-dot" aria-hidden="true"></span><span id="trackingLabel">MEDIAPIPE EN ESPERA</span></div>
+<section id="startPanel" class="start-card" aria-labelledby="cameraTitle"><p class="eyebrow">ENGINE 4 · R1.1 · BASE LIMPIA</p><h1 id="cameraTitle">RELOJ + MUÑECA · CÁMARA Y BANCO</h1><p id="statusMessage" class="lead">Runtime Engine 4 limpio · muñeca + reloj sobre eje oficial.</p><p class="privacy">Cámara = dinámica · banco = geometría · mismos cuatro modos de muñeca.</p><p id="installHint" class="install-hint">SIN BARRAS EN IPHONE/IPAD: COMPARTIR → AÑADIR A PANTALLA DE INICIO</p><button id="startButton" class="primary-button" type="button">Abrir cámara trasera</button></section>
+<section id="requestPanel" class="requesting" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><p>Esperando permiso de cámara…</p></section>
+<aside id="maskLabHud" aria-label="Datos internos de máscara"><p class="lab-title">ENGINE 4 · R1.1 · EJE OFICIAL</p><dl><dt>ESTADO</dt><dd id="maskStateValue">BUSCANDO P0</dd><dt>CENTRO X/Y</dt><dd id="maskCenterValue">—</dd><dt>ANCHO</dt><dd id="maskWidthValue">—</dd><dt>Δ FRAME</dt><dd id="maskDeltaValue">—</dd><dt>GIRO MP</dt><dd id="maskRollValue">—</dd><dt>COBERTURA</dt><dd id="maskCoverageValue">—</dd></dl><p id="maskHint">VERDE = eje por secciones · NARANJA = final oficial.</p></aside>
+<button id="maskReadyButton" class="mask-action" type="button">LISTO · APRENDER BRAZO</button><button id="maskPhotoButton" class="mask-action" type="button" hidden>FOTO</button><button id="maskResetButton" class="mask-action" type="button" hidden>REPETIR</button>
+<aside id="diagnosticsPanel" class="diagnostics" aria-label="Diagnóstico de cámara" hidden style="display:none!important"><div class="diagnostics-heading"><div><p class="eyebrow">DIAG</p><h2>Datos</h2></div><button id="closeDiagnosticsButton" class="icon-button" type="button" aria-label="Cerrar diagnóstico">×</button></div><dl id="diagnosticsList"></dl></aside>
+<nav class="controls" aria-label="Controles técnicos ocultos"><button id="diagnosticsButton" class="control-button" type="button" aria-pressed="false"><span class="control-label">DIAG</span><span id="fpsValue" class="control-value">DATOS</span></button><button id="guidesButton" class="control-button" type="button" aria-pressed="true"><span class="control-label">GUÍAS</span><span id="guidesValue" class="control-value">OCULTAR</span></button><button id="switchCameraButton" class="control-button" type="button" hidden><span class="control-label">CÁMARA</span><span id="switchCameraValue" class="control-value">FRONTAL</span></button><button id="stopButton" class="control-button" hidden><span class="control-label">SESIÓN</span><span class="control-value">DETENER</span></button></nav>
+</main></body></html>
