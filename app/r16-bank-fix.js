@@ -1,0 +1,1 @@
+function fixR16BankPose(){const p=document.getElementById("r16Pose");if(p&&!document.getElementById("r16BankPose")){p.id="r16BankPose";p.style.fontSize="23px";p.style.marginTop="2px";}}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",fixR16BankPose,{once:true});else fixR16BankPose();

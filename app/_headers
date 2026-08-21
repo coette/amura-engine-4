@@ -1,0 +1,42 @@
+/
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+
+/index.html
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+
+/manifest.webmanifest
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+/wrist-watch-entry-r181.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+/r18-bank-rig-r181.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+/wrist-watch-entry-r18.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+/wrist-watch-rig-r18.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+/static-bank-player-r16.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/hand-tracking.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/forearm-mask-lab-v2.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/axis-r16-live.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/r17-auto-rescue.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/r16-bank-fix.js
+  Cache-Control: no-cache, must-revalidate, max-age=0

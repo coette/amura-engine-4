@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "modelId": "amura-a1-irontide-pretty-mobile",
+  "asset": "A1-Irontide-AR-pretty-mobile.glb",
+  "displayUnits": "millimeters",
+  "gltfUnits": "meters",
+  "scaleToMillimeters": 1000,
+  "caseDiameterMm": 40,
+  "rootNode": "AMURA_AR_ROOT",
+  "contactNode": "AMURA_CASEBACK_CONTACT",
+  "axes": {
+    "x": "9_to_3",
+    "y": "12_to_6",
+    "z": "caseback_to_crystal"
+  },
+  "compression": "KHR_draco_mesh_compression",
+  "sourceTriangles": 3807459,
+  "mobileTriangles": 889356,
+  "simplificationRatio": 0.25
+}

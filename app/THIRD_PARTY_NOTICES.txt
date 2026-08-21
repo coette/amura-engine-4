@@ -1,0 +1,23 @@
+AMURA AR · THIRD-PARTY NOTICES
+
+MediaPipe Tasks Vision
+Package: @mediapipe/tasks-vision
+Version: 1.0.1
+Copyright Google LLC
+License: Apache License 2.0
+License text: vendor/mediapipe/LICENSE.txt
+
+Hand Landmarker model
+Source: Google MediaPipe Models
+File: models/hand_landmarker.task
+
+Three.js
+Version: 0.180.0
+Copyright 2010-2025 three.js authors
+License: MIT
+License text: vendor/three/LICENSE.txt
+
+Draco 3D Data Compression
+Copyright Google LLC
+License: Apache License 2.0
+License text: vendor/three/draco/LICENSE.txt
