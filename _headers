@@ -11,32 +11,26 @@
 /manifest.webmanifest
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-/wrist-watch-entry-r181.js
+/engine4-watch-entry.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-/r18-bank-rig-r181.js
+/engine4-wrist-rig.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-/wrist-watch-entry-r18.js
+/engine4-bank-rig.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-/wrist-watch-rig-r18.js
-  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
-
-/static-bank-player-r16.js
+/engine4-hand-tracking.js
   Cache-Control: no-cache, must-revalidate, max-age=0
 
-/hand-tracking.js
+/engine4-forearm-mask.js
   Cache-Control: no-cache, must-revalidate, max-age=0
 
-/forearm-mask-lab-v2.js
+/engine4-live-axis.js
   Cache-Control: no-cache, must-revalidate, max-age=0
 
-/axis-r16-live.js
+/engine4-auto-rescue.js
   Cache-Control: no-cache, must-revalidate, max-age=0
 
-/r17-auto-rescue.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
-
-/r16-bank-fix.js
+/engine4-bank-player.js
   Cache-Control: no-cache, must-revalidate, max-age=0

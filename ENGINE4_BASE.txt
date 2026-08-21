@@ -1,0 +1,5 @@
+AMURA ENGINE 4 · R1.1
+Base limpia y autocontenida.
+Runtime: MediaPipe + nube de antebrazo + eje oficial + autorrescate + wrist rig.
+Dependencias de ejecución locales: MediaPipe, WASM, Three.js, Draco, GLB y banco de fotos.
+Sin workflows ni referencias de runtime a revisiones históricas.

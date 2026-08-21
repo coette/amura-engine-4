@@ -1,6 +1,0 @@
-{
-  "name": "amura-engine-4",
-  "private": true,
-  "version": "1.0.0",
-  "scripts": {"build": "node build.mjs"}
-}
