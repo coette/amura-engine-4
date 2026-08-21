@@ -7,7 +7,7 @@ import {
   WebGLRenderer
 } from "./vendor/three/three.module.js";
 
-const REVISION = "R1.3";
+const REVISION = "R1.5";
 const DEFAULT_LENGTH_MM = 180;
 const WATCH_SHIFT_MM = -24;
 
@@ -24,14 +24,6 @@ let watchAnchor = null;
 let virtualAxis = null;
 const watchBasePosition = new Vector3();
 
-function bySuffix(root, suffix) {
-  let found = null;
-  root?.traverse?.((node) => {
-    if (!found && typeof node.name === "string" && node.name.endsWith(suffix)) found = node;
-  });
-  return found;
-}
-
 function readDimensions(showError = false) {
   const yInput = document.getElementById("wristDimY");
   const zInput = document.getElementById("wristDimZ");
@@ -41,7 +33,7 @@ function readDimensions(showError = false) {
   const valid = Number.isFinite(y) && Number.isFinite(z) && y >= 20 && y <= 120 && z >= 20 && z <= 120;
 
   if (!valid) {
-    if (showError && error) error.textContent = "INTRODUCE Y Y Z EN MILÍMETROS ANTES DE ABRIR LA CÁMARA";
+    if (showError && error) error.textContent = "INTRODUCE Y Y Z EN MILÍMETROS ANTES DE ABRIR CÁMARA O BANCO";
     return false;
   }
 
@@ -55,15 +47,10 @@ function readDimensions(showError = false) {
 
 function applyAssemblyGeometry() {
   if (!wristMesh || !assembly || !wristYmm || !wristZmm) return;
-
   wristMesh.scale.x = wristYmm / 2;
   wristMesh.scale.z = wristZmm / 2;
   wristMesh.position.z = wristZmm / 2;
-
-  if (virtualAxis) {
-    virtualAxis.position.set(0, 0, wristZmm / 2);
-  }
-
+  if (virtualAxis) virtualAxis.position.set(0, 0, wristZmm / 2);
   assembly.position.set(0, offsetYmm, offsetZmm);
 }
 
@@ -93,12 +80,10 @@ function ensureVirtualAxis() {
 
 function bindRig(scene) {
   if (trackingRig?.parent) return true;
-
-  const rig = scene?.getObjectByName?.("AMURA_R18_WRIST_WATCH_RIG") || bySuffix(scene, "_WRIST_WATCH_RIG");
+  const rig = scene?.getObjectByName?.("AMURA_R18_WRIST_WATCH_RIG");
   if (!rig) return false;
-
-  const anchor = rig.getObjectByName?.("AMURA_R18_WATCH_ANCHOR") || bySuffix(rig, "_WATCH_ANCHOR");
-  const wrist = rig.getObjectByName?.("AMURA_R18_WRIST_OCCLUDER") || bySuffix(rig, "_WRIST_OCCLUDER");
+  const anchor = rig.getObjectByName?.("AMURA_R18_WATCH_ANCHOR");
+  const wrist = rig.getObjectByName?.("AMURA_R18_WRIST_OCCLUDER");
   if (!anchor || !wrist) return false;
 
   trackingRig = rig;
@@ -109,11 +94,8 @@ function bindRig(scene) {
   assembly = new Group();
   assembly.name = "AMURA_ENGINE4_VIRTUAL_WRIST_ASSEMBLY";
   rig.add(assembly);
-
-  rig.remove(anchor);
-  assembly.add(anchor);
-  rig.remove(wrist);
-  assembly.add(wrist);
+  rig.remove(anchor); assembly.add(anchor);
+  rig.remove(wrist); assembly.add(wrist);
 
   ensureVirtualAxis();
   applyAssemblyGeometry();
@@ -123,8 +105,8 @@ function bindRig(scene) {
 }
 
 const originalRender = WebGLRenderer.prototype.render;
-if (!WebGLRenderer.prototype.__amuraEngine4LabR13) {
-  WebGLRenderer.prototype.__amuraEngine4LabR13 = true;
+if (!WebGLRenderer.prototype.__amuraEngine4LabR15) {
+  WebGLRenderer.prototype.__amuraEngine4LabR15 = true;
   WebGLRenderer.prototype.render = function patchedEngine4Render(scene, camera) {
     if (bindRig(scene)) {
       applyAssemblyGeometry();
@@ -174,21 +156,18 @@ function installUi() {
     applyAssemblyGeometry();
     updateLabValues();
   });
-
   zSlider?.addEventListener("input", () => {
     offsetZmm = Number(zSlider.value) || 0;
     applyAssemblyGeometry();
     updateLabValues();
   });
-
   watchButton?.addEventListener("click", () => {
     watchState = (watchState + 1) % 3;
     applyWatchState();
     updateLabValues();
   });
 
-  const resetLabButton = document.getElementById("axisResetButton");
-  resetLabButton?.addEventListener("click", () => {
+  document.getElementById("axisResetButton")?.addEventListener("click", () => {
     offsetYmm = 0;
     offsetZmm = 0;
     watchState = 0;
@@ -198,14 +177,12 @@ function installUi() {
     applyWatchState();
     updateLabValues();
   });
-
   updateLabValues();
 }
 
 function rescueBadgeActive(text) {
   return /CONGELADO|RELOCALIZANDO|ESPERANDO P0|PERDIDO/i.test(text || "");
 }
-
 function updateRescueBadge() {
   const badge = document.getElementById("r17RescueBadge");
   if (!badge) return;
@@ -217,6 +194,7 @@ setInterval(updateRescueBadge, 200);
 
 window.AmuraEngine4AxisLab = {
   revision: REVISION,
+  readDimensions,
   get state() {
     return {
       wristYmm,
