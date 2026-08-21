@@ -1,0 +1,82 @@
+name: Bootstrap AMURA Engine 4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootstrap-engine4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Engine 4
+        uses: actions/checkout@v4
+
+      - name: Import stable runtime only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/amura-engine-2
+          git clone --quiet https://github.com/coette/amura-engine-2.git /tmp/amura-engine-2
+          cd /tmp/amura-engine-2
+          git checkout --quiet fc78ef06f1ca19158ebd20337d4652aa848b6d08
+          cd "$GITHUB_WORKSPACE"
+
+          rm -rf app
+          mkdir -p app/models app/test-bank app/vendor
+
+          src=/tmp/amura-engine-2/site
+          for f in \
+            index.html styles.css manifest.webmanifest _headers THIRD_PARTY_NOTICES.txt \
+            camera.js camera-lens-lock-lab.js hand-tracking.js forearm-mask-lab-v2.js \
+            wrist-frame.js wrist-stabilizer.js tuner.js wrist-pose-ar04b.js \
+            wrist-watch-entry-r181.js static-bank-player-r16.js static-bank-analyzer.js \
+            final-chain-r15.js r16-bank-fix.js axis-r16-live.js r17-auto-rescue.js \
+            r18-bank-rig-r181.js wrist-watch-rig-r18.js \
+            icon.svg icon-192.png icon-512.png apple-touch-icon.png; do
+            cp "$src/$f" "app/$f"
+          done
+
+          cp -a "$src/models/." app/models/
+          cp -a "$src/test-bank/." app/test-bank/
+          cp -a "$src/vendor/." app/vendor/
+
+          cat > package.json <<'JSON'
+          {
+            "name": "amura-engine-4",
+            "private": true,
+            "version": "1.0.0",
+            "scripts": {"build": "node build.mjs"}
+          }
+          JSON
+
+          cat > build.mjs <<'JS'
+          import { cp, rm, mkdir } from 'node:fs/promises';
+          await rm('dist', { recursive: true, force: true });
+          await mkdir('dist', { recursive: true });
+          await cp('app', 'dist', { recursive: true });
+          JS
+
+          cat > README.md <<'MD'
+          # AMURA Engine 4
+
+          Nueva base limpia del probador AR de muñeca AMURA.
+
+          - Origen técnico: runtime estable R18.1.2 de `amura-engine-2`, commit `fc78ef06f1ca19158ebd20337d4652aa848b6d08`.
+          - El repositorio histórico no es una dependencia de ejecución.
+          - `app/` contiene únicamente la aplicación y sus assets locales necesarios.
+          - `dist/` se genera con `npm run build`.
+          MD
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md package.json build.mjs app
+          if ! git diff --cached --quiet; then
+            git commit -m 'Bootstrap clean Engine 4 runtime from stable R18.1.2'
+            git push
+          fi
