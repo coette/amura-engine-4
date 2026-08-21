@@ -11,26 +11,7 @@
 /manifest.webmanifest
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-/engine4-watch-entry.js
+/engine4-*
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
-
-/engine4-wrist-rig.js
-  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
-
-/engine4-bank-rig.js
-  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
-
-/engine4-hand-tracking.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
-
-/engine4-forearm-mask.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
-
-/engine4-live-axis.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
-
-/engine4-auto-rescue.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
-
-/engine4-bank-player.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
