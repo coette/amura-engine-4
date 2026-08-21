@@ -1,8 +1,8 @@
 {
-  "name": "AMURA AR · Engine 4 R1.7",
+  "name": "AMURA AR · Engine 4 R1.8",
   "short_name": "AMURA E4",
-  "description": "AMURA Engine 4 R1.7 · eje virtual centrado sobre eje naranja y pausa con redibujado 3D.",
-  "start_url": "./?v=e4r1.7",
+  "description": "AMURA Engine 4 R1.8 · diagnóstico visible del binding y posición del assembly sin cambiar la lógica del rig.",
+  "start_url": "./?v=e4r1.8",
   "scope": "./",
   "display": "fullscreen",
   "display_override": [
