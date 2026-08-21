@@ -7,7 +7,7 @@ import {
   WebGLRenderer
 } from "./vendor/three/three.module.js";
 
-const REVISION = "R1.8";
+const REVISION = "R1.9";
 const DEFAULT_LENGTH_MM = 180;
 const WATCH_SHIFT_MM = -24;
 
@@ -85,7 +85,7 @@ function updateDiagHud() {
   const hud = ensureDiagHud();
   const error = diag.reparentError ? ` · ${diag.reparentError}` : "";
   hud.textContent = [
-    `R1.8 DIAG AXIS-LAB`,
+    `R1.9 DIAG AXIS-LAB`,
     `bindRig: ${yesNo(diag.bindReached)} · ${diag.bindCallsPerSecond}/s`,
     `RIG: ${yesNo(diag.rigFound)}`,
     `ANCHOR: ${yesNo(diag.anchorFound)}`,
@@ -398,6 +398,7 @@ window.addEventListener("amura-camera-state", (event) => {
 window.addEventListener("pagehide", () => {
   stopPauseRenderLoop();
   if (diagRaf) cancelAnimationFrame(diagRaf);
+  if (renderRouteRaf) cancelAnimationFrame(renderRouteRaf);
 });
 
 installUi();
@@ -405,6 +406,105 @@ setInterval(updateRescueBadge, 200);
 window.AmuraEngine4Paused = false;
 ensureDiagHud();
 diagRaf = requestAnimationFrame(diagnosticFrame);
+
+// R1.9: diagnóstico de ruta real de WebGLRenderer. No modifica binding ni offsets.
+const renderRouteDiag = {
+  installedAt: performance.now(),
+  protoOriginalType: typeof originalRender,
+  protoPatchName: WebGLRenderer.prototype.render?.name || "—",
+  contextSeen: false,
+  contextAt: 0,
+  contextType: "—",
+  contextStack: "—"
+};
+let renderRouteRaf = 0;
+
+function shortStack(stack) {
+  if (!stack) return "—";
+  const rows = String(stack).split("\n").map((s) => s.trim());
+  const useful = rows.filter((s) => /engine4-wrist-rig|three\.module|engine4-axis-lab/.test(s));
+  return (useful.length ? useful : rows.slice(1, 3)).slice(0, 2).join(" | ");
+}
+
+function ensureRenderRouteHud() {
+  let hud = document.getElementById("engine4RenderRouteHud");
+  if (hud) return hud;
+  hud = document.createElement("div");
+  hud.id = "engine4RenderRouteHud";
+  hud.style.cssText = [
+    "position:fixed",
+    "top:calc(env(safe-area-inset-top,0px) + 112px)",
+    "left:8px",
+    "z-index:100121",
+    "width:min(292px,72vw)",
+    "padding:6px 7px",
+    "border:1px solid rgba(255,255,255,.28)",
+    "background:rgba(0,0,0,.58)",
+    "color:#fff",
+    "font:700 8.5px/1.28 ui-monospace,SFMono-Regular,Menlo,monospace",
+    "white-space:pre-wrap",
+    "pointer-events:none",
+    "border-radius:5px",
+    "text-shadow:0 1px 2px #000"
+  ].join(";");
+  (document.querySelector(".camera-lab") || document.body).appendChild(hud);
+  return hud;
+}
+
+function renderRouteLabel() {
+  if (diag.bindCallsPerSecond > 0 || diag.bindReached) return "PASA POR PROTOTYPE";
+  if (renderRouteDiag.contextSeen) return "RENDERER CREADO, PROTOTYPE NO ALCANZADO";
+  return "SIN CONFIRMAR AÚN";
+}
+
+function updateRenderRouteHud() {
+  const hud = ensureRenderRouteHud();
+  const order = renderRouteDiag.contextSeen
+    ? (renderRouteDiag.contextAt >= renderRouteDiag.installedAt ? "PARCHE → RENDERER" : "RENDERER → PARCHE")
+    : "CTX NO INTERCEPTADO";
+  const ctxDelta = renderRouteDiag.contextSeen
+    ? `+${Math.round(renderRouteDiag.contextAt - renderRouteDiag.installedAt)} ms`
+    : "—";
+  hud.textContent = [
+    "R1.9 DIAG RUTA RENDER",
+    `proto.render ANTES: ${renderRouteDiag.protoOriginalType}`,
+    `proto parche actual: ${renderRouteDiag.protoPatchName}`,
+    `orden observado: ${order} ${ctxDelta}`,
+    `WebGL ctx threeCanvas: ${yesNo(renderRouteDiag.contextSeen)} · ${renderRouteDiag.contextType}`,
+    "CREATE real: engine4-wrist-rig.js:532",
+    "CALL/frame: engine4-wrist-rig.js:607",
+    `prototype hits: ${diag.bindCallsPerSecond}/s`,
+    `ruta observada: ${renderRouteLabel()}`,
+    `stack ctx: ${renderRouteDiag.contextStack}`
+  ].join("\n");
+}
+
+const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+if (!HTMLCanvasElement.prototype.__amuraRenderRouteDiagR19) {
+  HTMLCanvasElement.prototype.__amuraRenderRouteDiagR19 = true;
+  HTMLCanvasElement.prototype.getContext = function engine4DiagGetContext(type, ...args) {
+    const textType = String(type || "").toLowerCase();
+    if (
+      this &&
+      this.id === "threeCanvas" &&
+      (textType === "webgl" || textType === "webgl2" || textType === "experimental-webgl")
+    ) {
+      renderRouteDiag.contextSeen = true;
+      renderRouteDiag.contextAt = performance.now();
+      renderRouteDiag.contextType = textType;
+      renderRouteDiag.contextStack = shortStack(new Error("R1.9 renderer context").stack);
+      updateRenderRouteHud();
+    }
+    return originalCanvasGetContext.call(this, type, ...args);
+  };
+}
+
+function renderRouteFrame() {
+  updateRenderRouteHud();
+  renderRouteRaf = requestAnimationFrame(renderRouteFrame);
+}
+ensureRenderRouteHud();
+renderRouteRaf = requestAnimationFrame(renderRouteFrame);
 
 window.AmuraEngine4AxisLab = {
   revision: REVISION,
